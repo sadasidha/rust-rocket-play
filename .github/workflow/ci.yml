@@ -1,0 +1,71 @@
+name: Rust
+
+on:
+  push:
+    branches: [ * ]
+  pull_request:
+    branches: [ * ]
+
+env:
+  CARGO_TERM_COLOR: always
+  BASE_VERSION: 0.1.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Necessary Environment variables
+        uses: FranzDiebold/github-env-vars-action@v2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_ECR }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_ECR }}
+          aws-region: ap-northeast-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Docker build, and push image to ECR
+        env:
+          TOKEN: ${{ secrets.BOT_GITHUB_TOKEN }}
+          ECR_REGISTRY: ${{ steps.login-ecr-outputs.registry }}
+        run: |
+          echo $TOKEN >> .token
+          IMAGE="${ECR_REGISTRY}/$CI_REPOSITORY_NAME_SLUG:${{ env.BASE_VERSION }}-${GITHUB_SHA::7}"
+          IMAGE_LATEST="${ECR_REGISTRY}/$CI_REPOSITORY_NAME_SLUG:latest"
+          DOCKER_BUILDKIT=1 docker build --secret id=token,src=.token -t $IMAGE -t $IMAGE_LATEST .
+          rm .token
+          docker push $IMAGE
+          docker push $IMAGE_LATEST
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Necessary Environment variables
+        uses: FranzDiebold/github-env-vars-action@v2
+      - name: "Set app version"
+        run: |
+            echo "APP_VERSION=${BASE_VERSION}-${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Checkout Delivery Repo
+        uses: actions/checkout@v4
+        with:
+          repository: FastAccounting/robota-delivery
+          ref: refs/heads/prerelease
+          token: ${{ secrets.BOT_GITHUB_TOKEN }}
+
+      - name: Update version
+        run: |
+          export KEY_NAME=`echo "${CI_REPOSITORY_NAME_SLUG}" | sed 's/-/_/g'`
+          if grep -q "$KEY_NAME: " helm/values.yaml; then
+            sed -r -i "s/(\s$KEY_NAME):.+/\1: ${APP_VERSION}/" helm/values.yaml
+          else
+            echo "  ${KEY_NAME}: ${APP_VERSION}" >> helm/values.yaml
+          fi

@@ -1,9 +1,9 @@
-use serde::{Serialize, Deserialize};
-use std::io::Cursor;
+use rocket::http::ContentType;
 use rocket::http::Status;
 use rocket::request::Request;
-use rocket::response::{self, Response, Responder};
-use rocket::http::ContentType;
+use rocket::response::{self, Responder, Response};
+use serde::{Deserialize, Serialize};
+use std::io::Cursor;
 
 #[derive(Serialize, Deserialize)]
 pub struct ErrorResponse {
@@ -11,7 +11,7 @@ pub struct ErrorResponse {
     pub message: String,
 }
 
-#[derive( Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ErrorMessage {
     //#[resp("{0}")]
     Internal(Status, String),
@@ -33,9 +33,9 @@ impl ErrorMessage {
     }
     fn get_http_status(&self) -> Status {
         match self {
-            ErrorMessage::Internal(_,_) => Status::InternalServerError,
-            ErrorMessage::NotFound(_,_) => Status::NotFound,
-            _ => Status::BadRequest
+            ErrorMessage::Internal(_, _) => Status::InternalServerError,
+            ErrorMessage::NotFound(_, _) => Status::NotFound,
+            _ => Status::BadRequest,
         }
     }
 }
@@ -49,10 +49,11 @@ impl std::fmt::Display for ErrorMessage {
 impl<'r> Responder<'r, 'static> for ErrorMessage {
     fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
         // serialize struct into json string
-        let err_response = serde_json::to_string(&ErrorResponse{
+        let err_response = serde_json::to_string(&ErrorResponse {
             status: self.get_http_status(),
-            message: self.get_error_message().clone()
-        }).unwrap();
+            message: self.get_error_message().clone(),
+        })
+        .unwrap();
 
         Response::build()
             .status(self.get_http_status())

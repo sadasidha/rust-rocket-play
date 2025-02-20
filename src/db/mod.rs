@@ -1,2 +1,2 @@
 pub mod db_conn;
-pub (crate) mod models;
+pub(crate) mod models;

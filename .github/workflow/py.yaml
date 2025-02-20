@@ -1,0 +1,26 @@
+name: Pull Request
+
+on:
+  push:
+    branches: [ * ]
+  pull_request:
+    branches: [ * ]
+
+jobs:
+  tests:
+    name: Cargo Test
+    runs-on: ubuntu-latest
+    steps:
+      - usage: actions/checkout@v4
+      - usage: cargo test --all-feature
+
+  formatting:
+      name: Rust Formatting
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions-rust-lang/setup-rust-toolchain@v1
+          with:
+            components: rustfmt
+        - name: RustFmt Check
+          uses: actions-rust-lang/rustfmt@v1

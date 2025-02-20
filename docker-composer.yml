@@ -1,0 +1,44 @@
+networks:
+  default:
+    ipam:
+      driver: default
+      config:
+        # this is to differ with other instance
+        - subnet: "172.17.239.0/24"
+services:
+  mysql:
+    image: mysql:8.0.39
+    # Note: If you use M1 or M2 mac, Please comment in below line.
+    # platform: linux/amd64
+    volumes:
+      - "/tmp/mysql/api:/var/lib/mysql"
+      - "./dev-config/mysql:/docker-entrypoint-initdb.d"
+    user: mysql
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_USER=stats
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=stats
+    command: --default-authentication-plugin=mysql_native_password
+
+
+
+  server:
+    image: robota-aggregate:latest
+    ports:
+      - '7128:7128'
+    volumes:
+      - .env_docker:/app/.env
+      - ./app:/app/app
+      - ./config:/app/config
+      - ./routes:/app/routes
+      - ./bootstrap:/app/bootstrap
+      - ./tests:/app/tests
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: root
+      MYSQL_PASS: root
+      MYSQL_PORT: 3306
+      MYSQL_CONNECTION: mysql
+      MYSQL_DATABASE: stats

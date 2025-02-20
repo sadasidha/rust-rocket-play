@@ -1,7 +1,6 @@
-use mysql::{prelude::Queryable, Row};
 use crate::db::db_conn::get_conn;
 use crate::utils::dates;
-
+use mysql::{prelude::Queryable, Row};
 
 pub struct DailyRowsCount {
     pub parent_id: String,
@@ -10,7 +9,13 @@ pub struct DailyRowsCount {
     pub rows_count: i64,
 }
 
-pub async fn select_by_date(start_date: String, end_date: String, group_id: i64, agg_type: String, parent_id_part: String) -> Vec<DailyRowsCount> {
+pub async fn select_by_date(
+    start_date: String,
+    end_date: String,
+    group_id: i64,
+    agg_type: String,
+    parent_id_part: String,
+) -> Vec<DailyRowsCount> {
     let query: &str;
     let s_date: String;
     let e_date: String;
@@ -45,7 +50,9 @@ pub async fn select_by_date(start_date: String, end_date: String, group_id: i64,
     }
 
     let mut pool_conn = get_conn().await.get().unwrap().get_conn().unwrap();
-    let rows: Vec<Row> = pool_conn.exec(query, (s_date, e_date, group_id, e_parent_id)).unwrap();
+    let rows: Vec<Row> = pool_conn
+        .exec(query, (s_date, e_date, group_id, e_parent_id))
+        .unwrap();
     let mut ret: Vec<DailyRowsCount> = Vec::new();
     for row in rows {
         ret.push(DailyRowsCount {
